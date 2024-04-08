@@ -38,6 +38,7 @@ def idilation(image, tip):
                 where image_heigh is equal to surface_height
                       image_width is equal to surface_width
     """
+    tip = tip.to(image.device)
     in_channels = 1
     out_channels = 1
     H, W = image.shape
@@ -215,6 +216,7 @@ def surfing(xyz, radius, config:dict[str, float]):
                 config (dict)
         Output: z_stage (tensor of size (*, len(y_stage), len(x_stage))
     """
+    radius = radius.to(xyz.device)
     radius2 = radius**2
     x_stage = torch.arange(config["min_x"], config["max_x"], config["resolution_x"], dtype=xyz.dtype, device=xyz.device) + 0.5*config["resolution_x"] #(W,)
     y_stage = torch.arange(config["min_y"], config["max_y"], config["resolution_y"], dtype=xyz.dtype, device=xyz.device) + 0.5*config["resolution_y"] #(H,)
@@ -226,8 +228,8 @@ def surfing(xyz, radius, config:dict[str, float]):
     r2 = dx2.unsqueeze(-2) + dy2[...,None] #(*,N,H,W)
     index_within_radius = r2 < radius2[...,None,None] #(*,N,H,W)
     diff = radius2[...,None,None] - r2
-    diff = torch.where(index_within_radius, diff, 1) #(*,N,H,W)
-    temp = torch.where(index_within_radius, xyz[...,2,None,None] + torch.sqrt(diff), -torch.inf) #(*,N,H,W)
+    diff = torch.where(index_within_radius, diff, torch.tensor(1, dtype=torch.float32, device=diff.device)) #(*,N,H,W)
+    temp = torch.where(index_within_radius, xyz[...,2,None,None] + torch.sqrt(diff), torch.tensor(-torch.inf, dtype=torch.float32, device=xyz.device)) #(*,N,H,W)
     temp_max = temp.max(dim=-3)[0] #(*,H,W)
     z_stage = torch.where(index_within_radius.any(dim=-3), temp_max, torch.zeros_like(temp_max, dtype=xyz.dtype, device=xyz.device)) #(H,W)
     return z_stage.flip([-2])
